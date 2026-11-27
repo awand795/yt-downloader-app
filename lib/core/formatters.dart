@@ -24,6 +24,11 @@ String formatDuration(Duration? duration) {
   return hours > 0 ? '$hours:$mm:$ss' : '$mm:$ss';
 }
 
+String formatSpeed(double? bytesPerSecond) {
+  if (bytesPerSecond == null || bytesPerSecond <= 0) return '';
+  return '${formatBytes(bytesPerSecond.round())}/s';
+}
+
 String formatEta(int seconds) {
   if (seconds <= 0) return '';
   if (seconds < 60) return '$seconds dtk';

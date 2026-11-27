@@ -30,6 +30,9 @@ class DownloadTask {
   TaskStatus status = TaskStatus.preparing;
   double fraction = 0;
   int etaSeconds = 0;
+  double? speedBytesPerSecond;
+  int? downloadedBytes;
+  int? totalBytes;
   int bytes = 0;
   String? lastLine;
   final DateTime startedAt = DateTime.now();

@@ -183,6 +183,41 @@ class ActiveDownloadCard extends StatelessWidget {
                   _ElapsedText(startedAt: task.startedAt),
               ],
             ),
+            if (task.status == TaskStatus.downloading &&
+                (task.speedBytesPerSecond != null || task.totalBytes != null)) ...[
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  const Icon(Icons.speed_rounded, size: 12, color: AppColors.faint),
+                  const SizedBox(width: 5),
+                  if (task.speedBytesPerSecond != null)
+                    Text(
+                      formatSpeed(task.speedBytesPerSecond),
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.text,
+                      ),
+                    ),
+                  if (task.speedBytesPerSecond != null && task.totalBytes != null)
+                    const Text(
+                      '  ·  ',
+                      style: TextStyle(fontSize: 11.5, color: AppColors.faint),
+                    ),
+                  if (task.totalBytes != null)
+                    Flexible(
+                      child: Text(
+                        task.downloadedBytes != null
+                            ? '${formatBytes(task.downloadedBytes)} / ${formatBytes(task.totalBytes)}'
+                            : formatBytes(task.totalBytes),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 11.5, color: AppColors.muted),
+                      ),
+                    ),
+                ],
+              ),
+            ],
           ],
           if (done) ...[
             const SizedBox(height: 10),

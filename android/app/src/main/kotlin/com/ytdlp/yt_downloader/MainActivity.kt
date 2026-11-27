@@ -352,10 +352,11 @@ class MainActivity : FlutterActivity() {
             addOption("--windows-filenames")
             // Fail fast on a dead connection instead of hanging at 0%.
             addOption("--socket-timeout", "20")
-            addOption("--retries", "5")
-            addOption("--fragment-retries", "10")
+            addOption("--retries", "10")
+            addOption("--fragment-retries", "15")
             // YouTube serves video in fragments; parallel fetches are much faster.
-            addOption("--concurrent-fragments", "4")
+            addOption("--concurrent-fragments", "8")
+            addOption("--http-chunk-size", "1M")
             if (cookiesFile.exists()) {
                 addOption("--cookies", cookiesFile.absolutePath)
             }

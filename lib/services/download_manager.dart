@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/download_stats.dart';
 import '../models/download_item.dart';
 import '../models/download_options.dart';
 import '../models/video_info.dart';
@@ -55,11 +56,21 @@ class DownloadManager extends ChangeNotifier {
 
     if (task.merge && event.fraction + 0.05 < task.fraction && task.phase == 1) {
       task.phase = 2;
+      // The audio stream is a new download: do not show the video's totals.
+      task.speedBytesPerSecond = null;
+      task.downloadedBytes = null;
+      task.totalBytes = null;
     }
     task.fraction = event.fraction.clamp(0, 1);
     task.etaSeconds = event.etaSeconds;
     if (event.line.trim().isNotEmpty) {
       task.lastLine = event.line.trim();
+      final stats = parseDownloadStats(event.line);
+      if (stats != null) {
+        task.speedBytesPerSecond = stats.speedBytesPerSecond;
+        task.downloadedBytes = stats.downloadedBytes;
+        task.totalBytes = stats.totalBytes;
+      }
     }
     if (task.status != TaskStatus.saving && task.status != TaskStatus.done) {
       // Zero progress before the first byte keeps the card in "preparing";

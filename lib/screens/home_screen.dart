@@ -145,6 +145,8 @@ class _HomeScreenState extends State<HomeScreen> {
       final lower = error.message.toLowerCase();
       if (lower.contains('sign in to confirm') || lower.contains('not a bot')) {
         _toast('YouTube meminta verifikasi. Impor cookies di menu Mesin unduhan.');
+      } else if (lower.contains('403') || lower.contains('forbidden')) {
+        _toast('YouTube menolak akses (403). Coba perbarui mesin di menu Mesin unduhan.');
       } else {
         _toast(error.message);
       }

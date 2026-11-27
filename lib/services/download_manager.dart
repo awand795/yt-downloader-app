@@ -136,7 +136,18 @@ class DownloadManager extends ChangeNotifier {
       unawaited(_persist());
     } on EngineException catch (error) {
       task.status = error.isCancelled ? TaskStatus.canceled : TaskStatus.failed;
-      task.error = error.isCancelled ? null : error.message;
+      if (error.isCancelled) {
+        task.error = null;
+      } else {
+        final lower = error.message.toLowerCase();
+        if (lower.contains('403') || lower.contains('forbidden')) {
+          task.error =
+              'YouTube menolak unduhan (HTTP 403). Coba perbarui mesin di menu Mesin unduhan '
+              'atau impor cookies YouTube.\n${error.message}';
+        } else {
+          task.error = error.message;
+        }
+      }
     } catch (error) {
       task.status = TaskStatus.failed;
       task.error = error.toString();

@@ -96,6 +96,11 @@ class MainActivity : FlutterActivity() {
                     ?: return result.error("BAD_ARGS", "url wajib diisi", null)
                 runAsync(result) {
                     ensureInitialized()
+                    // Prefer a freshly updated engine when one is being fetched.
+                    val deadline = System.currentTimeMillis() + 8_000
+                    while (updating && System.currentTimeMillis() < deadline) {
+                        Thread.sleep(200)
+                    }
                     val request = YoutubeDLRequest(url).apply {
                         addOption("--dump-single-json")
                         addOption("--no-playlist")
@@ -103,6 +108,9 @@ class MainActivity : FlutterActivity() {
                         addOption("--no-check-formats")
                         addOption("--no-colors")
                         addOption("--socket-timeout", "20")
+                        // Prefer the Android player client; the default web client is
+                        // frequently answered with HTTP 403 on the media URLs.
+                        addOption("--extractor-args", "youtube:player_client=android,web")
                         if (cookiesFile.exists()) {
                             addOption("--cookies", cookiesFile.absolutePath)
                         }
@@ -121,6 +129,10 @@ class MainActivity : FlutterActivity() {
                     ?: "%(title).120B [%(id)s].%(ext)s"
                 runAsync(result) {
                     ensureInitialized()
+                    val deadline = System.currentTimeMillis() + 15_000
+                    while (updating && System.currentTimeMillis() < deadline) {
+                        Thread.sleep(200)
+                    }
                     download(url, mediaArgs, taskId, template)
                 }
             }
@@ -267,6 +279,9 @@ class MainActivity : FlutterActivity() {
             addOption("--fragment-retries", "10")
             // YouTube serves video in fragments; parallel fetches are much faster.
             addOption("--concurrent-fragments", "4")
+            // Prefer the Android player client; the default web client is
+            // frequently answered with HTTP 403 on the media URLs.
+            addOption("--extractor-args", "youtube:player_client=android,web")
             if (cookiesFile.exists()) {
                 addOption("--cookies", cookiesFile.absolutePath)
             }

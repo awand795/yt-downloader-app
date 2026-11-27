@@ -3,7 +3,7 @@ import 'video_info.dart';
 
 /// What the user wants out of a link.
 enum DownloadKind {
-  videoAudio('Video + Audio', 'Terkunci'),
+  videoAudio('Video + Audio', 'Audio disertakan'),
   videoOnly('Video saja', 'Tanpa suara'),
   audioOnly('Audio saja', 'M4A / MP3');
 
@@ -83,6 +83,9 @@ List<DownloadOption> buildDownloadOptions(VideoInfo info, DownloadKind kind) {
 // ---------------------------------------------------------------- video side
 
 List<DownloadOption> _videoOptions(VideoInfo info, {required bool withAudio}) {
+  // Without a separate audio stream we cannot honestly offer "Video + Audio";
+  // fall back to the disabled tab instead of mislabelling a silent file.
+  if (withAudio && _bestAudio(info) == null) return const [];
   final bestPerHeight = <int, MediaFormat>{};
   for (final format in info.formats.where((f) => f.hasVideo)) {
     final height = format.height ?? 0;

@@ -108,9 +108,9 @@ class MainActivity : FlutterActivity() {
                         addOption("--no-check-formats")
                         addOption("--no-colors")
                         addOption("--socket-timeout", "20")
-                        // Prefer the Android player client; the default web client is
-                        // frequently answered with HTTP 403 on the media URLs.
-                        addOption("--extractor-args", "youtube:player_client=android,web")
+                        // The Android client only exposes ~360p without a PO token, while the
+                        // TV client returns full HD/4K streams without one.
+                        addOption("--extractor-args", "youtube:player_client=tv")
                         if (cookiesFile.exists()) {
                             addOption("--cookies", cookiesFile.absolutePath)
                         }
@@ -279,9 +279,9 @@ class MainActivity : FlutterActivity() {
             addOption("--fragment-retries", "10")
             // YouTube serves video in fragments; parallel fetches are much faster.
             addOption("--concurrent-fragments", "4")
-            // Prefer the Android player client; the default web client is
-            // frequently answered with HTTP 403 on the media URLs.
-            addOption("--extractor-args", "youtube:player_client=android,web")
+            // The TV client returns full HD/4K streams without a PO token and is
+            // less likely to be answered with HTTP 403 than the default web client.
+            addOption("--extractor-args", "youtube:player_client=tv")
             if (cookiesFile.exists()) {
                 addOption("--cookies", cookiesFile.absolutePath)
             }

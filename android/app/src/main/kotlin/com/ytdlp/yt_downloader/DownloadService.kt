@@ -109,6 +109,7 @@ class DownloadService : Service() {
     private fun ensureInitialized() {
         YoutubeDL.getInstance().init(applicationContext)
         FFmpeg.getInstance().init(applicationContext)
+        runCatching { YtDlpUpdater.ensureBundled(applicationContext) }
     }
 
     private fun workDir(): File {
@@ -139,7 +140,6 @@ class DownloadService : Service() {
             addOption("--retries", "5")
             addOption("--fragment-retries", "10")
             addOption("--concurrent-fragments", "4")
-            addOption("--extractor-args", "youtube:player_client=tv")
             if (cookiesFile().exists()) {
                 addOption("--cookies", cookiesFile().absolutePath)
             }

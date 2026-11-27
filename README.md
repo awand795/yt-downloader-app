@@ -14,13 +14,15 @@ Aplikasi menjalankan **yt-dlp** asli di dalam perangkat (bukan API server pihak 
 
 | Lapisan | Peran |
 | --- | --- |
-| `android/app/src/main/kotlin/.../MainActivity.kt` | Bridge `MethodChannel`: inisialisasi yt-dlp + FFmpeg, `analyze` (`--dump-single-json`), `download` (argumen `-f` pilihan), progres via `EventChannel`, batal, simpan ke MediaStore, buka/bagikan/hapus. |
+| `android/app/src/main/kotlin/.../MainActivity.kt` | Bridge `MethodChannel`: inisialisasi yt-dlp + FFmpeg, `analyze` (`--dump-single-json`), delegasi unduhan ke service, progres via `EventChannel`, batal, simpan ke MediaStore, buka/bagikan/hapus. |
+| `android/app/src/main/kotlin/.../DownloadService.kt` | Foreground service untuk menjalankan unduhan saat aplikasi di latar belakang/layar mati, lengkap dengan notifikasi progres. |
+| `android/app/src/main/kotlin/.../YtDlpUpdater.kt` | Memasang yt-dlp bawaan APK (2026.11.23) saat start dan memperbaruinya dari GitHub dengan timeout panjang bila jaringan memungkinkan. |
 | `lib/models/video_info.dart` | Parsing JSON yt-dlp (format, codec, resolusi, ukuran). |
 | `lib/models/download_options.dart` | Menyusun pilihan kualitas: mengelompokkan per resolusi, memilih H.264/MP4 bila tersedia, menyusun selector `video+audio`, dan opsi MP3/M4A. |
 | `lib/services/download_manager.dart` | Antrean satu unduhan aktif, progres dua fase (video lalu audio), publikasi ke folder Download, riwayat persisten. |
 | `lib/screens/` | Beranda (input tautan, status mesin, riwayat) dan layar hasil (pemilih mode + kualitas). |
 
-yt-dlp diperbarui otomatis (maksimal sekali per 12 jam) agar tetap kompatibel saat YouTube berubah. Ini penting karena sejak 2026 YouTube mewajibkan PO Token: ekstraktor berbasis Dart murni tidak lagi bisa mengunduh penuh.
+APK membawa yt-dlp 2026.11.23 sendiri, jadi analisa dan unduhan tetap berjalan tanpa perlu mengunduh mesin saat pertama dipakai. Pembaruan online (maksimal sekali per 12 jam) bersifat opsional dan memakai timeout panjang + retry. Ekstraksi memakai klien bawaan yt-dlp (tanpa memaksa `player_client=tv`, yang kini selalu dijawab "The page needs to be reloaded").
 
 ## Menjalankan
 

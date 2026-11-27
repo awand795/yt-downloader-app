@@ -24,6 +24,58 @@ object YtDlpUpdater {
     private const val BIN_NAME = "yt-dlp"
     private const val MIN_BYTES = 1_000_000L
 
+    /** yt-dlp shipped inside the APK so the app works without any download. */
+    const val BUNDLED_VERSION = "2026.11.23"
+    private const val BUNDLED_ASSET = "ytdlp/yt-dlp"
+    private const val PREF_BUNDLED = "tubegrabBundledVersion"
+
+    /**
+     * Installs the yt-dlp bundled in the APK when no newer copy is present.
+     * Must run after YoutubeDL.init(), which creates the target directory.
+     */
+    fun ensureBundled(context: Context) {
+        val prefs = context.getSharedPreferences("youtubedl-android", Context.MODE_PRIVATE)
+        val dir = binaryDir(context)
+        val target = File(dir, BIN_NAME)
+        if (prefs.getString(PREF_BUNDLED, null) == BUNDLED_VERSION && target.length() >= MIN_BYTES) {
+            return
+        }
+        synchronized(this) {
+            if (prefs.getString(PREF_BUNDLED, null) == BUNDLED_VERSION && target.length() >= MIN_BYTES) {
+                return
+            }
+            if (!dir.exists() && !dir.mkdirs()) throw IOException("folder mesin tidak bisa dibuat")
+            val temp = File(dir, "$BIN_NAME.bundled")
+            try {
+                context.assets.open(BUNDLED_ASSET).use { input ->
+                    temp.outputStream().use { output -> input.copyTo(output) }
+                }
+                if (temp.length() < MIN_BYTES) {
+                    throw IOException("aset mesin tidak valid (${temp.length()} B)")
+                }
+                if (target.exists() && !target.delete()) {
+                    throw IOException("mesin lama tidak bisa diganti")
+                }
+                if (!temp.renameTo(target)) {
+                    temp.copyTo(target, overwrite = true)
+                    temp.delete()
+                }
+            } finally {
+                if (temp.exists()) temp.delete()
+            }
+            prefs.edit()
+                .putString("dlpVersion", BUNDLED_VERSION)
+                .putString("dlpVersionName", "yt-dlp $BUNDLED_VERSION")
+                .putString(PREF_BUNDLED, BUNDLED_VERSION)
+                .apply()
+            Log.i(TAG, "installed bundled yt-dlp $BUNDLED_VERSION")
+        }
+    }
+
+    fun installedVersion(context: Context): String? =
+        context.getSharedPreferences("youtubedl-android", Context.MODE_PRIVATE)
+            .getString("dlpVersion", null)
+
     @Synchronized
     @Throws(IOException::class)
     fun update(context: Context): String {
@@ -112,8 +164,11 @@ object YtDlpUpdater {
         throw IOException("gagal mengunduh mesin yt-dlp", lastError)
     }
 
+    private fun binaryDir(context: Context): File =
+        File(File(context.noBackupFilesDir, "youtubedl-android"), "yt-dlp")
+
     private fun install(context: Context, downloaded: File) {
-        val dir = File(File(context.noBackupFilesDir, "youtubedl-android"), "yt-dlp")
+        val dir = binaryDir(context)
         if (!dir.exists() && !dir.mkdirs()) throw IOException("folder mesin tidak bisa dibuat")
         val target = File(dir, BIN_NAME)
         val temp = File(dir, "$BIN_NAME.new")

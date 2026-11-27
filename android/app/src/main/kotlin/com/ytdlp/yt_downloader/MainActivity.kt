@@ -114,9 +114,6 @@ class MainActivity : FlutterActivity() {
                         addOption("--no-check-formats")
                         addOption("--no-colors")
                         addOption("--socket-timeout", "20")
-                        // The Android client only exposes ~360p without a PO token, while the
-                        // TV client returns full HD/4K streams without one.
-                        addOption("--extractor-args", "youtube:player_client=tv")
                         if (cookiesFile.exists()) {
                             addOption("--cookies", cookiesFile.absolutePath)
                         }
@@ -271,6 +268,10 @@ class MainActivity : FlutterActivity() {
         if (initialized) return
         YoutubeDL.getInstance().init(applicationContext)
         FFmpeg.getInstance().init(applicationContext)
+        // Start with the yt-dlp bundled in the APK so analysis works even when
+        // the device cannot reach GitHub to update.
+        runCatching { YtDlpUpdater.ensureBundled(applicationContext) }
+            .onFailure { Log.w(TAG, "bundled yt-dlp install failed", it) }
         // Mark ready immediately so analysis/downloads are not blocked by the
         // optional network update of yt-dlp. The update runs in the background.
         initialized = true
@@ -300,14 +301,22 @@ class MainActivity : FlutterActivity() {
             prefs.edit().putLong("last_update", System.currentTimeMillis()).apply()
             lastUpdateStatus
         } catch (e: Throwable) {
-            lastUpdateStatus = "gagal: ${e.message}"
-            if (force) {
-                throw RuntimeException(
-                    "Gagal memperbarui mesin yt-dlp. Periksa koneksi internet " +
-                        "(sebaiknya Wi-Fi), lalu coba lagi. (${e.message})"
-                )
+            val fallback = YtDlpUpdater.installedVersion(applicationContext)
+            if (fallback != null) {
+                // A working engine is already installed (bundled or older), so
+                // the app keeps going instead of failing the whole request.
+                lastUpdateStatus = "memakai mesin $fallback (pembaruan online gagal)"
+                lastUpdateStatus
+            } else {
+                lastUpdateStatus = "gagal: ${e.message}"
+                if (force) {
+                    throw RuntimeException(
+                        "Gagal memperbarui mesin yt-dlp dan tidak ada mesin bawaan. " +
+                            "Pasang ulang aplikasi. (${e.message})"
+                    )
+                }
+                lastUpdateStatus
             }
-            lastUpdateStatus
         }
     }
 
@@ -347,9 +356,6 @@ class MainActivity : FlutterActivity() {
             addOption("--fragment-retries", "10")
             // YouTube serves video in fragments; parallel fetches are much faster.
             addOption("--concurrent-fragments", "4")
-            // The TV client returns full HD/4K streams without a PO token and is
-            // less likely to be answered with HTTP 403 than the default web client.
-            addOption("--extractor-args", "youtube:player_client=tv")
             if (cookiesFile.exists()) {
                 addOption("--cookies", cookiesFile.absolutePath)
             }

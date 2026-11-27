@@ -284,7 +284,6 @@ class MainActivity : FlutterActivity() {
         updating = true
         worker.execute {
             try {
-                prefs.edit().putLong("last_update", System.currentTimeMillis()).apply()
                 updateEngine(force = false)
             } catch (e: Throwable) {
                 lastUpdateStatus = "gagal: ${e.message}"
@@ -296,14 +295,18 @@ class MainActivity : FlutterActivity() {
 
     private fun updateEngine(force: Boolean): String {
         return try {
-            val status = YoutubeDL.getInstance()
-                .updateYoutubeDL(applicationContext, YoutubeDL.UpdateChannel.STABLE)
-            lastUpdateStatus = status?.name ?: "siap"
+            val version = YtDlpUpdater.update(applicationContext)
+            lastUpdateStatus = "diperbarui: $version"
             prefs.edit().putLong("last_update", System.currentTimeMillis()).apply()
             lastUpdateStatus
         } catch (e: Throwable) {
             lastUpdateStatus = "gagal: ${e.message}"
-            if (force) throw RuntimeException("Pembaruan mesin gagal: ${e.message}")
+            if (force) {
+                throw RuntimeException(
+                    "Gagal memperbarui mesin yt-dlp. Periksa koneksi internet " +
+                        "(sebaiknya Wi-Fi), lalu coba lagi. (${e.message})"
+                )
+            }
             lastUpdateStatus
         }
     }

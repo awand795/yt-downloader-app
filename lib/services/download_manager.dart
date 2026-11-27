@@ -114,7 +114,16 @@ class DownloadManager extends ChangeNotifier {
             lower.contains('403') ||
             lower.contains('forbidden');
         if (!retriable) rethrow;
-        await YtEngine.instance.update();
+        try {
+          await YtEngine.instance.update();
+        } on EngineException catch (updateError) {
+          throw EngineException(
+            'Mesin yt-dlp gagal diperbarui. Periksa koneksi internet (sebaiknya Wi-Fi), '
+            'lalu buka menu Mesin unduhan → Perbarui mesin sekarang.\n'
+            '${updateError.message}',
+            code: error.code,
+          );
+        }
         path = await YtEngine.instance.download(
           url: info.url,
           args: option.args,

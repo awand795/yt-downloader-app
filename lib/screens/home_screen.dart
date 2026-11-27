@@ -141,7 +141,16 @@ class _HomeScreenState extends State<HomeScreen> {
             lower.contains('forbidden');
         if (!retriable) rethrow;
         _toast('Memperbarui mesin yt-dlp…');
-        await YtEngine.instance.update();
+        try {
+          await YtEngine.instance.update();
+        } on EngineException catch (updateError) {
+          throw EngineException(
+            'Mesin yt-dlp gagal diperbarui. Periksa koneksi internet (sebaiknya Wi-Fi), '
+            'lalu buka menu Mesin unduhan → Perbarui mesin sekarang.\n'
+            '${updateError.message}',
+            code: error.code,
+          );
+        }
         json = await YtEngine.instance.analyze(link);
       }
       final info = VideoInfo.fromJson(json);

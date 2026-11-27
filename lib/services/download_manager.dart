@@ -100,11 +100,27 @@ class DownloadManager extends ChangeNotifier {
       // Stay in "preparing" until yt-dlp reports real progress; the status
       // flips to "downloading" from _onProgress once bytes start moving.
       notifyListeners();
-      final path = await YtEngine.instance.download(
-        url: info.url,
-        args: option.args,
-        taskId: task.id,
-      );
+      String path;
+      try {
+        path = await YtEngine.instance.download(
+          url: info.url,
+          args: option.args,
+          taskId: task.id,
+        );
+      } on EngineException catch (error) {
+        final lower = error.message.toLowerCase();
+        final retriable = lower.contains('page needs to be reloaded') ||
+            lower.contains('unable to extract') ||
+            lower.contains('403') ||
+            lower.contains('forbidden');
+        if (!retriable) rethrow;
+        await YtEngine.instance.update();
+        path = await YtEngine.instance.download(
+          url: info.url,
+          args: option.args,
+          taskId: task.id,
+        );
+      }
 
       task.status = TaskStatus.saving;
       notifyListeners();
@@ -140,7 +156,11 @@ class DownloadManager extends ChangeNotifier {
         task.error = null;
       } else {
         final lower = error.message.toLowerCase();
-        if (lower.contains('403') || lower.contains('forbidden')) {
+        if (lower.contains('page needs to be reloaded')) {
+          task.error =
+              'Mesin yt-dlp perlu diperbarui. Buka menu Mesin unduhan → Perbarui mesin sekarang, '
+              'lalu coba lagi.\n${error.message}';
+        } else if (lower.contains('403') || lower.contains('forbidden')) {
           task.error =
               'YouTube menolak unduhan (HTTP 403). Coba perbarui mesin di menu Mesin unduhan '
               'atau impor cookies YouTube.\n${error.message}';

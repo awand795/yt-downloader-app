@@ -127,7 +127,23 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted) setState(() {});
     });
     try {
-      final json = await YtEngine.instance.analyze(link);
+      Map<String, dynamic> json;
+      try {
+        json = await YtEngine.instance.analyze(link);
+      } on EngineException catch (error) {
+        // The bundled yt-dlp is often too old; a stale engine commonly fails
+        // with "The page needs to be reloaded" or 403. Try one automatic
+        // update + retry before surfacing the error.
+        final lower = error.message.toLowerCase();
+        final retriable = lower.contains('page needs to be reloaded') ||
+            lower.contains('unable to extract') ||
+            lower.contains('403') ||
+            lower.contains('forbidden');
+        if (!retriable) rethrow;
+        _toast('Memperbarui mesin yt-dlp…');
+        await YtEngine.instance.update();
+        json = await YtEngine.instance.analyze(link);
+      }
       final info = VideoInfo.fromJson(json);
       if (info.formats.isEmpty) {
         throw EngineException('Video ini tidak punya format yang bisa diunduh.');
@@ -145,6 +161,8 @@ class _HomeScreenState extends State<HomeScreen> {
       final lower = error.message.toLowerCase();
       if (lower.contains('sign in to confirm') || lower.contains('not a bot')) {
         _toast('YouTube meminta verifikasi. Impor cookies di menu Mesin unduhan.');
+      } else if (lower.contains('page needs to be reloaded')) {
+        _toast('Mesin yt-dlp perlu diperbarui. Buka menu Mesin unduhan → Perbarui mesin sekarang, lalu coba lagi.');
       } else if (lower.contains('403') || lower.contains('forbidden')) {
         _toast('YouTube menolak akses (403). Coba perbarui mesin di menu Mesin unduhan.');
       } else {

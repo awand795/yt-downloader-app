@@ -52,6 +52,12 @@ class MainActivity : FlutterActivity() {
     @Volatile
     private var pendingCookiesResult: MethodChannel.Result? = null
 
+    @Volatile
+    private var pendingDownloadResult: MethodChannel.Result? = null
+
+    @Volatile
+    private var pendingDownloadTaskId: String? = null
+
     private val cookiesFile by lazy { File(filesDir, "cookies.txt") }
 
     private val prefs by lazy { getSharedPreferences("tubegrab_engine", MODE_PRIVATE) }
@@ -126,23 +132,82 @@ class MainActivity : FlutterActivity() {
                     ?: return result.error("BAD_ARGS", "taskId wajib diisi", null)
                 val mediaArgs = call.argument<List<String>>("args") ?: emptyList()
                 val template = call.argument<String>("template")
-                    ?: "%(title).120B [%(id)s].%(ext)s"
-                runAsync(result) {
-                    ensureInitialized()
-                    val deadline = System.currentTimeMillis() + 15_000
-                    while (updating && System.currentTimeMillis() < deadline) {
-                        Thread.sleep(200)
+                    ?: "%(title).100B [%(id)s].%(ext)s"
+
+                // Wire the service callbacks to this (single) download.
+                DownloadService.onProgress = { tId, progress, eta, line ->
+                    if (tId == taskId) {
+                        mainHandler.post {
+                            progressSink?.success(
+                                mapOf(
+                                    "taskId" to tId,
+                                    "progress" to progress,
+                                    "eta" to eta,
+                                    "line" to line,
+                                )
+                            )
+                        }
                     }
-                    download(url, mediaArgs, taskId, template)
+                }
+                DownloadService.onComplete = { tId, path ->
+                    if (tId == taskId) {
+                        mainHandler.post {
+                            pendingDownloadResult?.success(path)
+                            pendingDownloadResult = null
+                            pendingDownloadTaskId = null
+                        }
+                    }
+                }
+                DownloadService.onError = { tId, e ->
+                    if (tId == taskId) {
+                        mainHandler.post {
+                            pendingDownloadResult?.error("ENGINE_ERROR", cleanMessage(e), null)
+                            pendingDownloadResult = null
+                            pendingDownloadTaskId = null
+                        }
+                    }
+                }
+
+                pendingDownloadResult = result
+                pendingDownloadTaskId = taskId
+
+                worker.execute {
+                    try {
+                        ensureInitialized()
+                        val deadline = System.currentTimeMillis() + 15_000
+                        while (updating && System.currentTimeMillis() < deadline) {
+                            Thread.sleep(200)
+                        }
+                        val intent = Intent(this@MainActivity, DownloadService::class.java).apply {
+                            action = DownloadService.ACTION_START
+                            putExtra(DownloadService.EXTRA_URL, url)
+                            putStringArrayListExtra(DownloadService.EXTRA_ARGS, ArrayList(mediaArgs))
+                            putExtra(DownloadService.EXTRA_TASK_ID, taskId)
+                            putExtra(DownloadService.EXTRA_TEMPLATE, template)
+                        }
+                        androidx.core.content.ContextCompat.startForegroundService(this@MainActivity, intent)
+                    } catch (e: Throwable) {
+                        mainHandler.post {
+                            pendingDownloadResult?.error("ENGINE_ERROR", cleanMessage(e), null)
+                            pendingDownloadResult = null
+                            pendingDownloadTaskId = null
+                        }
+                    }
                 }
             }
 
             "cancel" -> {
                 val taskId = call.argument<String>("taskId")
                     ?: return result.error("BAD_ARGS", "taskId wajib diisi", null)
-                runAsync(result) {
+                try {
                     YoutubeDL.getInstance().destroyProcessById(taskId)
+                } catch (_: Throwable) {}
+                val intent = Intent(this@MainActivity, DownloadService::class.java).apply {
+                    action = DownloadService.ACTION_CANCEL
+                    putExtra(DownloadService.EXTRA_TASK_ID, taskId)
                 }
+                startService(intent)
+                result.success(true)
             }
 
             "fileSize" -> {
